@@ -1,0 +1,111 @@
+name: daily log
+
+on:
+  schedule:
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: generate log entry
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          DAY=$(date +%u)
+
+          TOPICS_BACKEND=(
+            "rate limiting strategies: token bucket vs leaky bucket tradeoffs in high-throughput APIs"
+            "connection pooling: tuning pool size for Postgres under variable load"
+            "idempotency keys: implementing safe retries for payment and order endpoints"
+            "database index bloat: diagnosing and reclaiming space after bulk deletes"
+            "N+1 query problem: detection patterns and fix strategies with ORM examples"
+            "pagination at scale: keyset vs offset, and why offset breaks at 10M rows"
+            "soft deletes vs hard deletes: audit trail tradeoffs and query performance impact"
+            "optimistic locking: version columns to prevent lost updates in concurrent writes"
+            "materialized views: when to use them and how to handle staleness"
+            "event-driven architecture: at-least-once delivery guarantees and idempotent consumers"
+          )
+
+          TOPICS_SYSTEMS=(
+            "CAP theorem in practice: what partition tolerance actually means for your stack"
+            "write-ahead logging: how Postgres uses WAL for crash recovery"
+            "consistent hashing: reducing rebalancing cost when nodes join or leave"
+            "saga pattern: managing distributed transactions without two-phase commit"
+            "backpressure: signaling upstream producers to slow down in streaming pipelines"
+            "thundering herd: cache stampede prevention with probabilistic early expiry"
+            "read replicas: routing strategies and replication lag handling"
+            "circuit breakers: detecting failure and stopping cascading calls downstream"
+            "blue-green deployments: zero-downtime releases and rollback strategy"
+            "sharding: horizontal partitioning strategies and cross-shard query pitfalls"
+          )
+
+          TOPICS_API=(
+            "REST vs GraphQL: when each makes sense and where they break down"
+            "API versioning: URL path vs header vs query param tradeoffs"
+            "webhook reliability: retry logic, signature verification, and delivery guarantees"
+            "OpenAPI spec-first development: generating clients and reducing contract drift"
+            "caching HTTP responses: Cache-Control headers, ETags, and stale-while-revalidate"
+            "long polling vs SSE vs WebSockets: choosing the right real-time primitive"
+            "bulk endpoints: batching requests to reduce round trips in mobile clients"
+            "rate limit headers: communicating limits and retry timing to API consumers"
+            "HATEOAS in practice: hypermedia links and whether they actually help discoverability"
+            "API gateway patterns: authentication, routing, and request transformation at the edge"
+          )
+
+          TOPICS_DEBUG=(
+            "diagnosing memory leaks in a Node.js service using heap snapshots"
+            "tracing a latency spike to a missing composite index on a join column"
+            "debugging race conditions in async job queues with distributed locks"
+            "finding the root cause of intermittent 502s in a load-balanced environment"
+            "profiling CPU-bound Python code and moving hot paths to C extensions"
+            "tracking down a silent data corruption bug using checksums and audit logs"
+            "resolving a cascading failure caused by a misconfigured connection pool timeout"
+            "using flame graphs to find unexpected GC pressure in a JVM service"
+            "diagnosing clock skew issues breaking distributed session tokens"
+            "tracing a memory fragmentation issue in a long-running Redis instance"
+          )
+
+          ALL_TOPICS=("${TOPICS_BACKEND[@]}" "${TOPICS_SYSTEMS[@]}" "${TOPICS_API[@]}" "${TOPICS_DEBUG[@]}")
+          COUNT=${#ALL_TOPICS[@]}
+          IDX=$(( (RANDOM + $(date +%j)) % COUNT ))
+          TOPIC="${ALL_TOPICS[$IDX]}"
+
+          NOTES_OPTIONS=(
+            "revisited this today after running into it at the service layer. the fix is straightforward once you know what to look for but it takes a while to see it the first time."
+            "spent time reading through how this actually works under the hood. a lot of tutorials gloss over the edge cases that matter in production."
+            "wrote a small test harness to verify my understanding. behavior matched what I expected, but the failure modes were more subtle than I initially thought."
+            "this came up in a design discussion. ended up going deeper than planned because the tradeoffs are not obvious without real load numbers."
+            "drew out the sequence diagram to make sure I had the flow right. helped spot an assumption I was making that does not hold under concurrent requests."
+            "read the relevant RFC and source code to understand the spec vs implementation gap. there is always one."
+            "walked through a real incident post-mortem that traced back to this. the fix was small but understanding why it broke took the whole afternoon."
+            "benchmarked two approaches. the simpler one won. premature optimization would have made this much harder to debug later."
+          )
+
+          NOTES_COUNT=${#NOTES_OPTIONS[@]}
+          NOTES_IDX=$((RANDOM % NOTES_COUNT))
+          NOTE="${NOTES_OPTIONS[$NOTES_IDX]}"
+
+          mkdir -p logs
+          cat > logs/$DATE.md << EOF
+          # $DATE
+
+          ## topic: $TOPIC
+
+          $NOTE
+          EOF
+
+          echo "created log for $DATE"
+
+      - name: commit and push
+        run: |
+          git config user.name "Ibrahim Ahmed"
+          git config user.email "Ibrahimahmed05@users.noreply.github.com"
+          DATE=$(date +%Y-%m-%d)
+          git add logs/$DATE.md
+          git diff --cached --quiet || git commit -m "log: $DATE"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
